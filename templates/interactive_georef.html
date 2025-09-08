@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive IFC Georeferencing</title>
+    <link rel="icon" type="image/x-icon" href="../static/images/flavicon.png">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;        function loadBuildingModel(filename) {
+            // Simulate loading a building model
+            // In a real implementation, this would load the actual IFC file
+            const viewer = document.getElementById('building-viewer');
+            
+            const displayName = filename || 'Sample Building';
+            viewer.innerHTML = `
+                <div style="text-align: center; color: #333;">
+                    <p><strong>Building Model Loaded: ${displayName}</strong></p>
+                    <p>Click anywhere to select control points</p>
+                    <div style="width: 300px; height: 200px; border: 2px dashed #007bff; margin: 20px auto; position: relative; background: linear-gradient(45deg, #f0f8ff 25%, transparent 25%), linear-gradient(-45deg, #f0f8ff 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f8ff 75%), linear-gradient(-45deg, transparent 75%, #f0f8ff 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;">`    margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .main-content {
+            display: flex;
+            height: 80vh;
+        }
+        .left-panel {
+            width: 50%;
+            border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+        }
+        .right-panel {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-header {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: bold;
+        }
+        .panel-content {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+        }
+        .viewer-container {
+            width: 100%;
+            height: 100%;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: crosshair;
+            position: relative;
+        }
+        .map-container {
+            width: 100%;
+            height: 100%;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        .controls {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .btn-success {
+            background-color: #28a745;
+        }
+        .btn-success:hover {
+            background-color: #1e7e34;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        .coordinates-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .coordinates-table th,
+        .coordinates-table td {
+            border: 1px solid #dee2e6;
+            padding: 8px;
+            text-align: center;
+        }
+        .coordinates-table th {
+            background-color: #e9ecef;
+        }
+        .point-marker {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 4px rgba(0,0,0,0.5);
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
+        .building-point {
+            background-color: #ff0000;
+        }
+        .map-point {
+            background-color: #0000ff;
+        }
+        .instruction {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 15px;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 15px;
+            color: #721c24;
+        }
+        .step-indicator {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .step {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #6c757d;
+            color: white;
+            line-height: 30px;
+            margin: 0 5px;
+        }
+        .step.active {
+            background-color: #007bff;
+        }
+        .step.completed {
+            background-color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Interactive IFC Georeferencing</h1>
+            <p>Click points on your building model and map them to geographic coordinates</p>
+        </div>
+        
+        <div class="step-indicator">
+            <span class="step active" id="step1">1</span>
+            <span class="step" id="step2">2</span>
+            <span class="step" id="step3">3</span>
+        </div>
+        
+        <div class="main-content">
+            <div class="left-panel">
+                <div class="panel-header">
+                    <span id="left-title">Step 1: Select Points on Building</span>
+                </div>
+                <div class="panel-content">
+                    <div class="instruction" id="instruction">
+                        First, upload your IFC file, then click on 3 or more points in your building that you can easily identify.
+                        These should be corners, reference points, or distinct features.
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <input type="file" id="file-upload" accept=".ifc" style="margin-bottom: 10px;">
+                        <div id="upload-status" style="font-size: 12px; color: #666;"></div>
+                    </div>
+                    
+                    <div class="viewer-container" id="building-viewer">
+                        <div style="text-align: center; color: #6c757d;">
+                            <p>IFC Model Viewer</p>
+                            <p>Please upload an IFC file first</p>
+                            <canvas id="building-canvas" style="display: none;"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="controls">
+                    <button class="btn" id="load-model" onclick="loadBuildingModel()">Load Model</button>
+                    <button class="btn btn-danger" onclick="clearBuildingPoints()" disabled id="clear-building">Clear Points</button>
+                    <button class="btn btn-success" onclick="nextStep()" disabled id="next-step">Next: Map View</button>
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <div class="panel-header">
+                    <span id="right-title">Step 2: Select Geographic Coordinates</span>
+                </div>
+                <div class="panel-content">
+                    <div class="instruction" id="map-instruction" style="display: none;">
+                        Click on the map to set the geographic location for each selected building point.
+                        Click in the same order as you selected points on the building.
+                    </div>
+                    <div class="map-container" id="map-container">
+                        <div id="map" style="width: 100%; height: 100%;"></div>
+                    </div>
+                </div>
+                <div class="controls">
+                    <label for="epsg-select">Coordinate System:</label>
+                    <select id="epsg-select">
+                        <option value="32643">EPSG:32643 (WGS84 UTM 43N - Pakistan)</option>
+                        <option value="24313">EPSG:24313 (Kalianpur UTM 43N)</option>
+                        <option value="3857">EPSG:3857 (Web Mercator)</option>
+                    </select>
+                    <button class="btn btn-danger" onclick="clearMapPoints()" disabled id="clear-map">Clear Map Points</button>
+                    <button class="btn btn-success" onclick="generateConfig()" disabled id="generate-config">Generate Configuration</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls" style="text-align: center; padding: 20px; border-top: 1px solid #dee2e6;">
+            <table class="coordinates-table" id="coordinates-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th rowspan="2">Point</th>
+                        <th colspan="3">Building Coordinates (m)</th>
+                        <th colspan="3">Geographic Coordinates</th>
+                        <th rowspan="2">Lat/Lon</th>
+                    </tr>
+                    <tr>
+                        <th>X</th>
+                        <th>Y</th>
+                        <th>Z</th>
+                        <th>Easting</th>
+                        <th>Northing</th>
+                        <th>Elevation</th>
+                    </tr>
+                </thead>
+                <tbody id="coordinates-body">
+                </tbody>
+            </table>
+            
+            <div id="final-config" style="display: none; text-align: left; background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-top: 15px;">
+                <h3>Configuration for Web Application:</h3>
+                <div id="config-output"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Leaflet for map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Include Three.js for 3D model viewing -->
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // Global variables
+        let buildingPoints = [];
+        let mapPoints = [];
+        let map = null;
+        let currentStep = 1;
+        let scene, camera, renderer, controls;
+        let buildingModel = null;
+        let ifcBounds = null; // Store actual IFC coordinate bounds
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMap();
+            setupEventListeners();
+            
+            // Check if filename is provided in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const filename = urlParams.get('filename');
+            if (filename) {
+                sessionStorage.setItem('selectedFilename', filename);
+                loadBuildingModel(filename);
+            }
+        });
+        
+        function initializeMap() {
+            // Initialize Leaflet map centered on Islamabad
+            map = L.map('map').setView([33.6844, 73.0479], 13);
+            
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            // Add click handler to map
+            map.on('click', onMapClick);
+            
+            // Add a marker for Islamabad center
+            L.marker([33.6844, 73.0479])
+                .addTo(map)
+                .bindPopup('Islamabad Center<br>Click to place your building here')
+                .openPopup();
+        }
+        
+        function setupEventListeners() {
+            // Add building viewer click handler
+            document.getElementById('building-viewer').addEventListener('click', onBuildingClick);
+            
+            // Add file upload handler
+            document.getElementById('file-upload').addEventListener('change', handleFileUpload);
+        }
+        
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!file.name.toLowerCase().endsWith('.ifc')) {
+                alert('Please select an IFC file (.ifc extension)');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('upload-status');
+            statusDiv.innerHTML = 'Uploading file...';
+            statusDiv.style.color = '#2196f3';
+            
+            // Create form data for upload
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Upload file to server
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.redirected || response.ok) {
+                    statusDiv.innerHTML = `File uploaded: ${file.name}`;
+                    statusDiv.style.color = '#28a745';
+                    
+                    sessionStorage.setItem('selectedFilename', file.name);
+                    loadBuildingModel(file.name);
+                    
+                    return;
+                }
+                throw new Error('Upload failed');
+            })
+            .catch(error => {
+                statusDiv.innerHTML = 'Upload failed. Please try again.';
+                statusDiv.style.color = '#dc3545';
+                console.error('Upload error:', error);
+            });
+        }
+        
+        function loadBuildingModel() {
+            const filename = getSelectedFilename();
+            
+            if (filename) {
+                // Load actual IFC bounds for accurate coordinate mapping
+                fetch(`/api/ifc-analysis/${filename}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.bounds && data.coordinates_count > 0) {
+                            ifcBounds = data.bounds;
+                            console.log('IFC Bounds loaded:', ifcBounds);
+                            
+                            // Update building viewer with actual dimensions
+                            const viewer = document.getElementById('building-viewer');
+                            viewer.innerHTML = `
+                                <div style="text-align: center; color: #333;">
+                                    <p><strong>IFC Model: ${filename}</strong></p>
+                                    <p>Dimensions: ${ifcBounds.dimensions[0].toFixed(1)}m × ${ifcBounds.dimensions[1].toFixed(1)}m × ${ifcBounds.dimensions[2].toFixed(1)}m</p>
+                                    <p>Click anywhere to select control points</p>
+                                    <div style="width: 300px; height: 200px; border: 2px dashed #007bff; margin: 20px auto; position: relative; background: linear-gradient(45deg, #f0f8ff 25%, transparent 25%), linear-gradient(-45deg, #f0f8ff 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f8ff 75%), linear-gradient(-45deg, transparent 75%, #f0f8ff 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;">
+                                        <div style="position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.8); padding: 2px 5px; font-size: 12px;">
+                                            Real IFC Building (${ifcBounds.coordinates_count} elements)
+                                        </div>
+                                    </div>
+                                    <p style="font-size: 12px; color: #666;">Click on the floor plan to select control points. Coordinates will be mapped to real IFC values.</p>
+                                </div>
+                            `;
+                        } else {
+                            // Fallback to simulated model
+                            loadSimulatedModel();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading IFC bounds:', error);
+                        loadSimulatedModel();
+                    });
+            } else {
+                loadSimulatedModel();
+            }
+            
+            document.getElementById('clear-building').disabled = false;
+        }
+        
+        function loadSimulatedModel() {
+            // Fallback: Simulate loading a building model
+            const viewer = document.getElementById('building-viewer');
+            viewer.innerHTML = `
+                <div style="text-align: center; color: #333;">
+                    <p><strong>Simulated Building Model</strong></p>
+                    <p>Click anywhere to select control points</p>
+                    <div style="width: 300px; height: 200px; border: 2px dashed #007bff; margin: 20px auto; position: relative; background: linear-gradient(45deg, #f0f8ff 25%, transparent 25%), linear-gradient(-45deg, #f0f8ff 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f8ff 75%), linear-gradient(-45deg, transparent 75%, #f0f8ff 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;">
+                        <div style="position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.8); padding: 2px 5px; font-size: 12px;">Building Floor Plan</div>
+                    </div>
+                    <p style="font-size: 12px; color: #666;">Upload an IFC file first for accurate coordinates.</p>
+                </div>
+            `;
+        }
+        
+        function onBuildingClick(event) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            // Convert screen coordinates to building coordinates
+            let buildingX, buildingY, buildingZ = 0;
+            
+            if (ifcBounds && ifcBounds.dimensions) {
+                // Use actual IFC model bounds for realistic coordinates
+                const relX = x / rect.width;  // 0 to 1
+                const relY = 1 - (y / rect.height); // 0 to 1 (flip Y axis)
+                
+                buildingX = ifcBounds.min[0] + relX * ifcBounds.dimensions[0];
+                buildingY = ifcBounds.min[1] + relY * ifcBounds.dimensions[1];
+                buildingZ = ifcBounds.min[2]; // Use ground level from IFC
+            } else {
+                // Fallback to simulated coordinates (100m x 100m building)
+                const buildingWidth = 100; // meters
+                const buildingHeight = 100; // meters
+                
+                buildingX = (x / rect.width) * buildingWidth - (buildingWidth / 2); // -50 to +50
+                buildingY = (1 - y / rect.height) * buildingHeight - (buildingHeight / 2); // -50 to +50 (flip Y)
+                buildingZ = 0; // Ground level
+            }
+            
+            const point = {
+                screen: {x: x, y: y},
+                building: {x: buildingX, y: buildingY, z: buildingZ}
+            };
+            
+            buildingPoints.push(point);
+            
+            // Add visual marker
+            const marker = document.createElement('div');
+            marker.className = 'point-marker building-point';
+            marker.style.left = x + 'px';
+            marker.style.top = y + 'px';
+            marker.title = `P${buildingPoints.length}: (${buildingX.toFixed(2)}, ${buildingY.toFixed(2)}, ${buildingZ.toFixed(2)})`;
+            event.currentTarget.appendChild(marker);
+            
+            updateUI();
+            
+            console.log(`Building point ${buildingPoints.length}: (${buildingX.toFixed(3)}, ${buildingY.toFixed(3)}, ${buildingZ.toFixed(3)})`);
+        }
+        
+        function onMapClick(e) {
+            if (currentStep !== 2) return;
+            
+            const latlng = e.latlng;
+            
+            // Convert to selected coordinate system
+            const epsg = document.getElementById('epsg-select').value;
+            
+            let easting, northing;
+            
+            if (epsg === '32643') {
+                // Simple and accurate UTM conversion for Pakistan
+                // Using a more direct approach that matches the backend transformation
+                const lat = latlng.lat;
+                const lng = latlng.lng;
+                
+                // UTM Zone 43N (central meridian 75°E) conversion
+                const k0 = 0.9996;
+                const a = 6378137; // WGS84 semi-major axis
+                const f = 1/298.257223563; // WGS84 flattening
+                const e = Math.sqrt(2*f - f*f); // eccentricity
+                
+                const latRad = lat * Math.PI / 180;
+                const lngRad = lng * Math.PI / 180;
+                const centralMeridian = 75 * Math.PI / 180; // UTM Zone 43N
+                
+                const deltaLng = lngRad - centralMeridian;
+                
+                const N = a / Math.sqrt(1 - e*e * Math.sin(latRad)*Math.sin(latRad));
+                const T = Math.tan(latRad) * Math.tan(latRad);
+                const C = (e*e/(1-e*e)) * Math.cos(latRad) * Math.cos(latRad);
+                const A = Math.cos(latRad) * deltaLng;
+                
+                const M = a * ((1 - e*e/4 - 3*e*e*e*e/64 - 5*Math.pow(e,6)/256) * latRad
+                           - (3*e*e/8 + 3*e*e*e*e/32 + 45*Math.pow(e,6)/1024) * Math.sin(2*latRad)
+                           + (15*e*e*e*e/256 + 45*Math.pow(e,6)/1024) * Math.sin(4*latRad)
+                           - (35*Math.pow(e,6)/3072) * Math.sin(6*latRad));
+                
+                easting = k0 * N * (A + (1-T+C)*A*A*A/6 + (5-18*T+T*T+72*C-58*(e*e/(1-e*e)))*Math.pow(A,5)/120) + 500000;
+                northing = k0 * (M + N*Math.tan(latRad)*(A*A/2 + (5-T+9*C+4*C*C)*A*A*A*A/24 + (61-58*T+T*T+600*C-330*(e*e/(1-e*e)))*Math.pow(A,6)/720));
+                
+                // Ensure we're in the northern hemisphere
+                if (northing < 0) northing += 10000000;
+                
+            } else {
+                // Simplified conversion for other systems
+                easting = latlng.lng * 111320;
+                northing = latlng.lat * 110540;
+            }
+            
+            const elevation = 540; // Default elevation for Islamabad
+            
+            // Validate map point distances to ensure reasonable building scale
+            if (mapPoints.length > 0) {
+                const firstPoint = mapPoints[0];
+                const distance = calculateDistance(firstPoint.latlng.lat, firstPoint.latlng.lng, latlng.lat, latlng.lng);
+                
+                // If distance is more than 1km, warn user
+                if (distance > 1000) {
+                    if (!confirm(`Warning: This point is ${(distance/1000).toFixed(2)}km away from the first point. This might make your building appear very large. Continue anyway?`)) {
+                        return;
+                    }
+                }
+            }
+            
+            const point = {
+                latlng: latlng,
+                coordinates: {
+                    easting: easting,
+                    northing: northing,
+                    elevation: elevation
+                },
+                epsg: epsg
+            };
+            
+            mapPoints.push(point);
+            
+            // Add marker to map
+            const marker = L.marker([latlng.lat, latlng.lng])
+                .addTo(map)
+                .bindPopup(`Point ${mapPoints.length}<br>Lat: ${latlng.lat.toFixed(6)}<br>Lng: ${latlng.lng.toFixed(6)}<br>UTM: ${easting.toFixed(2)}, ${northing.toFixed(2)}`);
+            
+            updateUI();
+            
+            console.log(`Map point ${mapPoints.length}: ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)} -> ${easting.toFixed(2)}, ${northing.toFixed(2)}`);
+        }
+        
+        // Helper function to calculate distance between two lat/lng points
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371000; // Earth's radius in meters
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        function nextStep() {
+            if (buildingPoints.length < 3) {
+                alert('Please select at least 3 points on the building first.');
+                return;
+            }
+            
+            currentStep = 2;
+            updateUI();
+            
+            // Update step indicators
+            document.getElementById('step1').classList.add('completed');
+            document.getElementById('step1').classList.remove('active');
+            document.getElementById('step2').classList.add('active');
+            
+            // Update panel titles
+            document.getElementById('left-title').textContent = 'Selected Building Points';
+            document.getElementById('right-title').textContent = 'Step 2: Select Geographic Coordinates';
+            
+            // Show map instruction
+            document.getElementById('map-instruction').style.display = 'block';
+            
+            // Update instruction
+            document.getElementById('instruction').innerHTML = `
+                <strong>Building points selected: ${buildingPoints.length}</strong><br>
+                Now click on the map to set geographic coordinates for each point.<br>
+                <span style="color: #e74c3c;"><strong>⚠️ Important:</strong> Click points close together (within a few meters) for a normal-sized building.</span><br>
+                Click in the same order as you selected the building points.
+            `;
+        }
+        
+        function clearBuildingPoints() {
+            buildingPoints = [];
+            const markers = document.querySelectorAll('.building-point');
+            markers.forEach(marker => marker.remove());
+            updateUI();
+        }
+        
+        function clearMapPoints() {
+            mapPoints = [];
+            map.eachLayer(function(layer) {
+                if (layer instanceof L.Marker && layer.getLatLng().lat !== 33.6844) {
+                    map.removeLayer(layer);
+                }
+            });
+            updateUI();
+        }
+        
+        function updateUI() {
+            // Update button states
+            document.getElementById('next-step').disabled = buildingPoints.length < 3;
+            document.getElementById('clear-map').disabled = mapPoints.length === 0;
+            document.getElementById('generate-config').disabled = 
+                buildingPoints.length !== mapPoints.length || buildingPoints.length < 3;
+            
+            // Update coordinates table
+            updateCoordinatesTable();
+        }
+        
+        function updateCoordinatesTable() {
+            const table = document.getElementById('coordinates-table');
+            const tbody = document.getElementById('coordinates-body');
+            
+            if (buildingPoints.length > 0 || mapPoints.length > 0) {
+                table.style.display = 'table';
+                tbody.innerHTML = '';
+                
+                const maxPoints = Math.max(buildingPoints.length, mapPoints.length);
+                
+                for (let i = 0; i < maxPoints; i++) {
+                    const row = document.createElement('tr');
+                    
+                    const buildingPoint = buildingPoints[i];
+                    const mapPoint = mapPoints[i];
+                    
+                    row.innerHTML = `
+                        <td>P${i + 1}</td>
+                        <td>${buildingPoint ? buildingPoint.building.x.toFixed(3) : '-'}</td>
+                        <td>${buildingPoint ? buildingPoint.building.y.toFixed(3) : '-'}</td>
+                        <td>${buildingPoint ? buildingPoint.building.z.toFixed(3) : '-'}</td>
+                        <td>${mapPoint ? mapPoint.coordinates.easting.toFixed(2) : '-'}</td>
+                        <td>${mapPoint ? mapPoint.coordinates.northing.toFixed(2) : '-'}</td>
+                        <td>${mapPoint ? mapPoint.coordinates.elevation.toFixed(1) : '-'}</td>
+                        <td>${mapPoint ? `${mapPoint.latlng.lat.toFixed(6)}°N, ${mapPoint.latlng.lng.toFixed(6)}°E` : '-'}</td>
+                    `;
+                    
+                    tbody.appendChild(row);
+                }
+            } else {
+                table.style.display = 'none';
+            }
+        }
+        
+        function generateConfig() {
+            if (buildingPoints.length !== mapPoints.length || buildingPoints.length < 3) {
+                alert('Please ensure you have the same number of building and map points (minimum 3).');
+                return;
+            }
+            
+            currentStep = 3;
+            
+            // Update step indicators
+            document.getElementById('step2').classList.add('completed');
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step3').classList.add('active');
+            
+            const epsg = document.getElementById('epsg-select').value;
+            
+            // Show configuration for reference
+            let configText = `
+<h4>Generated Configuration:</h4>
+<p><strong>EPSG Code:</strong> ${epsg}</p>
+<p><strong>Number of Control Points:</strong> ${buildingPoints.length}</p>
+<p><strong>Status:</strong> <span style="color: green;">Ready to submit automatically!</span></p>
+
+<div style="margin: 20px 0;">
+    <button onclick="autoSubmitToGeoreferencing()" class="btn btn-success" style="font-size: 16px; padding: 12px 24px;">
+        🚀 Automatically Submit to Georeferencing
+    </button>
+    <button onclick="showManualInstructions()" class="btn" style="margin-left: 10px;">
+        📋 Show Manual Instructions
+    </button>
+</div>
+
+<div id="manual-instructions" style="display: none;">
+<h5>Manual Entry (if needed):</h5>
+<h6>Local IFC coordinates (meters):</h6>
+<pre>`;
+            
+            buildingPoints.forEach((point, i) => {
+                configText += `P${i + 1} = (${point.building.x.toFixed(3)}, ${point.building.y.toFixed(3)}, ${point.building.z.toFixed(3)})\n`;
+            });
+            
+            configText += `</pre>
+
+<h6>Target coordinates in EPSG:${epsg}:</h6>
+<pre>`;
+            
+            mapPoints.forEach((point, i) => {
+                configText += `P${i + 1}' = (${point.coordinates.easting.toFixed(2)}, ${point.coordinates.northing.toFixed(2)}, ${point.coordinates.elevation.toFixed(1)})\n`;
+            });
+            
+            configText += `</pre>
+</div>`;
+            
+            document.getElementById('config-output').innerHTML = configText;
+            document.getElementById('final-config').style.display = 'block';
+            
+            // Scroll to bottom
+            document.getElementById('final-config').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function showManualInstructions() {
+            document.getElementById('manual-instructions').style.display = 'block';
+        }
+        
+        function autoSubmitToGeoreferencing() {
+            // Get the current filename from URL or prompt user
+            let filename = getSelectedFilename();
+            
+            if (!filename) {
+                filename = prompt('Enter your IFC filename (e.g., building.ifc):');
+                if (!filename) {
+                    alert('Filename is required to proceed.');
+                    return;
+                }
+            }
+
+            const epsg = document.getElementById('epsg-select').value;
+
+            // Show loading message
+            const loadingDiv = document.createElement('div');
+            loadingDiv.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                           background: rgba(0,0,0,0.8); display: flex; align-items: center; 
+                           justify-content: center; z-index: 10000; color: white;">
+                    <div style="text-align: center;">
+                        <h2>🚀 Submitting to Georeferencing...</h2>
+                        <p>Automatically entering your coordinates and processing...</p>
+                        <div style="margin: 20px 0;">⏳ Please wait...</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loadingDiv);
+
+            // Send data to the backend
+            fetch('/auto_georeference', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filename: filename,
+                    buildingPoints: buildingPoints,
+                    mapPoints: mapPoints,
+                    epsgCode: epsg
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Go directly to the final form
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('Error: ' + data.error);
+                    document.body.removeChild(loadingDiv);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error submitting points: ' + error);
+                document.body.removeChild(loadingDiv);
+            });
+            
+            form.submit();
+        }
+        
+        function getSelectedFilename() {
+            // Try to get filename from URL parameters or previous selection
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('filename') || sessionStorage.getItem('selectedFilename');
+        }
+    </script>
+</body>
+</html>
