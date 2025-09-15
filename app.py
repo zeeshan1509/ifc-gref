@@ -129,6 +129,7 @@ def infoExt(filename , epsgCode):
                 ifcunit = ifc_unit.Name
     try: 
         quantity = unitmapper(ifcunit)
+        ureg = pint.UnitRegistry()
         ifcmeter = quantity.to(ureg.meter).magnitude
     except:
         ifcmeter = None
@@ -142,6 +143,7 @@ def infoExt(filename , epsgCode):
     #     ifcmeter = None
     try: 
         quantity = unitmapper(crsunit)
+        ureg = pint.UnitRegistry()
         crsmeter = quantity.to(ureg.meter).magnitude
     except:
         crsmeter = None
@@ -157,8 +159,10 @@ def infoExt(filename , epsgCode):
 
     if crsmeter is not None and ifcmeter is not None:
         coeff= ifcmeter/crsmeter
+        print(f"Unit conversion: IFC unit='{ifcunit}' ({ifcmeter}m), CRS unit='{crsunit}' ({crsmeter}m), coeff={coeff}")
     else:
-        errorMessage = "IFC/Map unit error"
+        print(f"Unit conversion failed: IFC unit='{ifcunit}' (ifcmeter={ifcmeter}), CRS unit='{crsunit}' (crsmeter={crsmeter})")
+        errorMessage = f"IFC/Map unit error: Could not determine unit conversion. IFC unit: {ifcunit}, CRS unit: {crsunit}"
         return messages, errorMessage
     if Refl:
         messages.append(("Reference Longitude",y0))
@@ -410,7 +414,7 @@ def local_trans(filename , messages):
     session['by'] = by        
     session['bz'] = bz        
 
-    messages.append(("First Point Target coordinates" , ("(" + str(xt) + ", " + str(yt) + ", " + str(zt) + ")")))
+    messages.append(("First Point Target coordinates" , ("(" + f"{xt:.6f}" + ", " + f"{yt:.6f}" + ", " + f"{zt:.6f}" + ")")))
     error += '\n\nAccuracy of the results improves as you provide more georeferenced points.\nWithout any additional georeferenced points, it is assumed that the model is scaled based on unit conversion and rotation is derived from TrueNorth direction (if available).\n'
 
     ifc_file = ifc_file.end_transaction()
@@ -430,7 +434,45 @@ def calculate(filename):
         
         # Validate required session variables
         if coeff is None:
-            return "Error: Missing scaling coefficient. Please restart the georeferencing process.", 400
+            # Try to recalculate coefficient as fallback
+            try:
+                # Get IFC unit
+                ifc_units = ifc_file.by_type("IfcUnitAssignment")[0].Units
+                ifcunit = None
+                for ifc_unit in ifc_units:
+                    if ifc_unit.is_a("IfcSIUnit") and ifc_unit.UnitType == "LENGTHUNIT":
+                        if ifc_unit.Prefix is not None:
+                            ifcunit = ifc_unit.Prefix + ifc_unit.Name
+                        else:
+                            ifcunit = ifc_unit.Name
+                        break
+                
+                # Get target CRS unit (assume meters if not available)
+                crsunit = session.get('mapunit', 'meter')
+                
+                if ifcunit:
+                    # Calculate coefficient
+                    try:
+                        ifc_quantity = unitmapper(ifcunit)
+                        crs_quantity = unitmapper(crsunit)
+                        ureg = pint.UnitRegistry()
+                        ifcmeter = ifc_quantity.to(ureg.meter).magnitude
+                        crsmeter = crs_quantity.to(ureg.meter).magnitude
+                        coeff = ifcmeter / crsmeter
+                        session['coeff'] = coeff
+                        print(f"Recalculated coefficient: {coeff} (IFC: {ifcunit}={ifcmeter}m, CRS: {crsunit}={crsmeter}m)")
+                    except:
+                        coeff = 0.001  # Default assumption: IFC in mm, CRS in meters
+                        session['coeff'] = coeff
+                        print(f"Using default coefficient: {coeff}")
+                else:
+                    coeff = 0.001  # Default assumption: IFC in mm, CRS in meters
+                    session['coeff'] = coeff
+                    print(f"Using default coefficient (no IFC unit found): {coeff}")
+                    
+            except Exception as e:
+                print(f"Failed to recalculate coefficient: {e}")
+                return "Error: Missing scaling coefficient and unable to recalculate. Please restart the georeferencing process.", 400
         
         if rows is None:
             return "Error: Missing row count information. Please restart the georeferencing process.", 400

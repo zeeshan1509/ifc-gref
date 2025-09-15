@@ -142,10 +142,6 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <img src="../static/images/logo1.png" alt="Logo 1" class="logo">
-        <a href="https://3d.bk.tudelft.nl/"><img src="../static/images/logo2.png" alt="Logo 2" class="logo"></a>
-    </div>
     <div class="container">
         <h1>BIM and Geo Information</h1>
 
@@ -269,14 +265,14 @@
                 const mapPoint = mapPoints[i];
                 
                 // Fill building coordinates
-                document.getElementById(`x${i}`).value = buildingPoint.building.x.toFixed(3);
-                document.getElementById(`y${i}`).value = buildingPoint.building.y.toFixed(3);
-                document.getElementById(`z${i}`).value = buildingPoint.building.z.toFixed(3);
+                document.getElementById(`x${i}`).value = buildingPoint.building.x.toFixed(6);
+                document.getElementById(`y${i}`).value = buildingPoint.building.y.toFixed(6);
+                document.getElementById(`z${i}`).value = buildingPoint.building.z.toFixed(6);
                 
                 // Fill target coordinates
-                document.getElementById(`x_prime${i}`).value = mapPoint.coordinates.easting.toFixed(2);
-                document.getElementById(`y_prime${i}`).value = mapPoint.coordinates.northing.toFixed(2);
-                document.getElementById(`z_prime${i}`).value = mapPoint.coordinates.elevation.toFixed(1);
+                document.getElementById(`x_prime${i}`).value = mapPoint.coordinates.easting.toFixed(6);
+                document.getElementById(`y_prime${i}`).value = mapPoint.coordinates.northing.toFixed(6);
+                document.getElementById(`z_prime${i}`).value = mapPoint.coordinates.elevation.toFixed(6);
                 
                 // Add visual feedback
                 ['x', 'y', 'z', 'x_prime', 'y_prime', 'z_prime'].forEach(prefix => {
@@ -399,18 +395,18 @@
                     const yInput = document.querySelector(`input[name="y${i}"]`);
                     const zInput = document.querySelector(`input[name="z${i}"]`);
                     
-                    if (xInput) xInput.value = buildingPoint.building.x.toFixed(3);
-                    if (yInput) yInput.value = buildingPoint.building.y.toFixed(3);
-                    if (zInput) zInput.value = buildingPoint.building.z.toFixed(3);
+                    if (xInput) xInput.value = buildingPoint.building.x.toFixed(6);
+                    if (yInput) yInput.value = buildingPoint.building.y.toFixed(6);
+                    if (zInput) zInput.value = buildingPoint.building.z.toFixed(6);
                     
                     // Populate target coordinates
                     const xPrimeInput = document.querySelector(`input[name="x_prime${i}"]`);
                     const yPrimeInput = document.querySelector(`input[name="y_prime${i}"]`);
                     const zPrimeInput = document.querySelector(`input[name="z_prime${i}"]`);
                     
-                    if (xPrimeInput) xPrimeInput.value = mapPoint.coordinates.easting.toFixed(2);
-                    if (yPrimeInput) yPrimeInput.value = mapPoint.coordinates.northing.toFixed(2);
-                    if (zPrimeInput) zPrimeInput.value = mapPoint.coordinates.elevation.toFixed(1);
+                    if (xPrimeInput) xPrimeInput.value = mapPoint.coordinates.easting.toFixed(6);
+                    if (yPrimeInput) yPrimeInput.value = mapPoint.coordinates.northing.toFixed(6);
+                    if (zPrimeInput) zPrimeInput.value = mapPoint.coordinates.elevation.toFixed(6);
                     
                     // Add visual feedback
                     [xInput, yInput, zInput, xPrimeInput, yPrimeInput, zPrimeInput].forEach(input => {

@@ -255,7 +255,7 @@
                 <thead>
                     <tr>
                         <th rowspan="2">Point</th>
-                        <th colspan="3">Building Coordinates (m)</th>
+                        <th colspan="3">Building Coordinates (mm)</th>
                         <th colspan="3">Geographic Coordinates</th>
                         <th rowspan="2">Lat/Lon</th>
                     </tr>
@@ -396,7 +396,7 @@
                             viewer.innerHTML = `
                                 <div style="text-align: center; color: #333;">
                                     <p><strong>IFC Model: ${filename}</strong></p>
-                                    <p>Dimensions: ${ifcBounds.dimensions[0].toFixed(1)}m × ${ifcBounds.dimensions[1].toFixed(1)}m × ${ifcBounds.dimensions[2].toFixed(1)}m</p>
+                                    <p>Dimensions: ${(ifcBounds.dimensions[0]/1000).toFixed(3)}m × ${(ifcBounds.dimensions[1]/1000).toFixed(3)}m × ${(ifcBounds.dimensions[2]/1000).toFixed(3)}m</p>
                                     <p>Click anywhere to select control points</p>
                                     <div style="width: 300px; height: 200px; border: 2px dashed #007bff; margin: 20px auto; position: relative; background: linear-gradient(45deg, #f0f8ff 25%, transparent 25%), linear-gradient(-45deg, #f0f8ff 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f8ff 75%), linear-gradient(-45deg, transparent 75%, #f0f8ff 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;">
                                         <div style="position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.8); padding: 2px 5px; font-size: 12px;">
@@ -475,12 +475,12 @@
             marker.className = 'point-marker building-point';
             marker.style.left = x + 'px';
             marker.style.top = y + 'px';
-            marker.title = `P${buildingPoints.length}: (${buildingX.toFixed(2)}, ${buildingY.toFixed(2)}, ${buildingZ.toFixed(2)})`;
+            marker.title = `P${buildingPoints.length}: (${buildingX.toFixed(6)}, ${buildingY.toFixed(6)}, ${buildingZ.toFixed(6)})`;
             event.currentTarget.appendChild(marker);
             
             updateUI();
             
-            console.log(`Building point ${buildingPoints.length}: (${buildingX.toFixed(3)}, ${buildingY.toFixed(3)}, ${buildingZ.toFixed(3)})`);
+            console.log(`Building point ${buildingPoints.length}: (${buildingX.toFixed(6)}, ${buildingY.toFixed(6)}, ${buildingZ.toFixed(6)})`);
         }
         
         function onMapClick(e) {
