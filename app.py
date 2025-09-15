@@ -381,17 +381,31 @@ def local_trans(filename , messages):
     zt = session.get('zt')
     bx,by,bz = 0,0,0
     error = ""
-    if hasattr(ifc_file.by_type("IfcSite")[0], "ObjectPlacement") and ifc_file.by_type("IfcSite")[0].ObjectPlacement.is_a("IfcLocalPlacement"):
-        local_placement = ifc_file.by_type("IfcSite")[0].ObjectPlacement.RelativePlacement
-        # Check if the local placement is an IfcAxis2Placement3D
-        if local_placement.is_a("IfcAxis2Placement3D"):
-            local_origin = local_placement.Location.Coordinates
-            bx, by, bz = map(float, local_origin)
-            messages.append(("First Point Local Coordinates",str(local_origin)))
+    
+    try:
+        sites = ifc_file.by_type("IfcSite")
+        if not sites:
+            error += "No IfcSite found in the model. "
+            bx, by, bz = 0, 0, 0
         else:
-                error += "Local placement is not IfcAxis2Placement3D."
-    else:
-            error += "IfcSite does not have a local placement."
+            site = sites[0]
+            if hasattr(site, "ObjectPlacement") and site.ObjectPlacement and site.ObjectPlacement.is_a("IfcLocalPlacement"):
+                local_placement = site.ObjectPlacement.RelativePlacement
+                # Check if the local placement is an IfcAxis2Placement3D
+                if local_placement and local_placement.is_a("IfcAxis2Placement3D") and local_placement.Location:
+                    local_origin = local_placement.Location.Coordinates
+                    bx, by, bz = map(float, local_origin)
+                    messages.append(("First Point Local Coordinates",str(local_origin)))
+                else:
+                    error += "Local placement is not IfcAxis2Placement3D or missing Location. "
+                    bx, by, bz = 0, 0, 0
+            else:
+                error += "IfcSite does not have a local placement. "
+                bx, by, bz = 0, 0, 0
+    except Exception as e:
+        error += f"Error reading site coordinates: {str(e)}. "
+        bx, by, bz = 0, 0, 0
+    
     session['bx'] = bx
     session['by'] = by        
     session['bz'] = bz        
@@ -414,6 +428,13 @@ def calculate(filename):
         if ifc_file is None:
             return "Error: Could not open IFC file. Please check the file exists and is valid.", 400
         
+        # Validate required session variables
+        if coeff is None:
+            return "Error: Missing scaling coefficient. Please restart the georeferencing process.", 400
+        
+        if rows is None:
+            return "Error: Missing row count information. Please restart the georeferencing process.", 400
+        
         data_points = []
         Refl = session.get('Refl')
         if Refl:
@@ -423,11 +444,30 @@ def calculate(filename):
             bx = session.get('bx')
             by = session.get('by')
             bz = session.get('bz')
-            data_points.append({"X": bx, "Y": by, "Z": bz, "X_prime": xt, "Y_prime": yt, "Z_prime":zt})
+            
+            # Check if reflection coordinates are available
+            missing_vars = []
+            if xt is None: missing_vars.append('xt')
+            if yt is None: missing_vars.append('yt')
+            if zt is None: missing_vars.append('zt')
+            if bx is None: missing_vars.append('bx')
+            if by is None: missing_vars.append('by')
+            if bz is None: missing_vars.append('bz')
+            
+            if missing_vars:
+                # If reflection coordinates are missing, fall back to non-reflection mode
+                print(f"Warning: Missing reflection coordinates: {', '.join(missing_vars)}. Falling back to manual coordinate input mode.")
+                Refl = False
+                session['Refl'] = False
+            else:
+                data_points.append({"X": bx, "Y": by, "Z": bz, "X_prime": xt, "Y_prime": yt, "Z_prime":zt})
         #seperater
         if not Refl and rows == 1:
             Rotation_solution = 0
             # Use reciprocal of coeff for proper IFC transformation
+            if coeff == 0:
+                return "Error: Invalid scaling coefficient (cannot be zero). Please restart the georeferencing process.", 400
+                
             S_solution = 1.0/coeff  # This correctly scales from IFC mm to CRS meters
             ro = ifc_file.by_type("IfcGeometricRepresentationContext")[0].TrueNorth
             if ro is not None and ro.is_a("IfcDirection"):
@@ -449,6 +489,9 @@ def calculate(filename):
             if rows == 0:
                 Rotation_solution = 0
                 # Use reciprocal of coeff for proper IFC transformation
+                if coeff == 0:
+                    return "Error: Invalid scaling coefficient (cannot be zero). Please restart the georeferencing process.", 400
+                
                 S_solution = 1.0/coeff  # This correctly scales from IFC mm to CRS meters
                 ro = ifc_file.by_type("IfcGeometricRepresentationContext")[0].TrueNorth
                 if ro is not None and ro.is_a("IfcDirection"):
@@ -458,6 +501,18 @@ def calculate(filename):
                 Rotation_solution = math.atan2(xord,xabs)
                 A = math.cos(Rotation_solution)
                 B = math.sin(Rotation_solution)
+                
+                # Get session variables with validation
+                xt = session.get('xt')
+                yt = session.get('yt')
+                zt = session.get('zt')
+                bx = session.get('bx')
+                by = session.get('by')
+                bz = session.get('bz')
+                
+                if any(var is None for var in [xt, yt, zt, bx, by, bz]):
+                    return "Error: Missing coordinate data for georeferencing. Please restart the georeferencing process.", 400
+                
                 # Fix coordinate transformation - use correct transformation formula
                 E_solution = xt - (A*S_solution*bx) + (B*S_solution*by)
                 N_solution = yt - (B*S_solution*bx) - (A*S_solution*by)
@@ -507,10 +562,20 @@ def calculate(filename):
                 if Refl:
                     initial_guess = [coeff, 0, xt, yt, zt]
                 else:
-                    xg =float(request.form[f'x_prime{0}']) - (float(request.form[f'x{0}'])*coeff)
-                    yg = float(request.form[f'y_prime{0}']) - (float(request.form[f'y{0}'])*coeff)
-                    zg = float(request.form[f'z_prime{0}']) - (float(request.form[f'z{0}'])*coeff)
-                    initial_guess = [coeff,0,xg,yg,zg]
+                    try:
+                        x0 = float(request.form[f'x{0}'])
+                        y0 = float(request.form[f'y{0}'])
+                        z0 = float(request.form[f'z{0}'])
+                        x_prime0 = float(request.form[f'x_prime{0}'])
+                        y_prime0 = float(request.form[f'y_prime{0}'])
+                        z_prime0 = float(request.form[f'z_prime{0}'])
+                        
+                        xg = x_prime0 - (x0 * coeff)
+                        yg = y_prime0 - (y0 * coeff)
+                        zg = z_prime0 - (z0 * coeff)
+                        initial_guess = [coeff, 0, xg, yg, zg]
+                    except (ValueError, KeyError) as e:
+                        return f"Error: Invalid form data for initial coordinates. {str(e)}", 400
 
                 # Perform the least squares optimization for all data points
                 result = leastsq(equations, initial_guess, args=(data_points,), full_output=True)
@@ -528,7 +593,7 @@ def calculate(filename):
                                         x_axis_abscissa=math.cos(Rotation_solution),
                                         x_axis_ordinate=math.sin(Rotation_solution),
                                         scale=S_solution)
-        fn_output = re.sub('\.ifc$','_georeferenced.ifc', fn)
+        fn_output = re.sub(r'\.ifc$','_georeferenced.ifc', fn)
         ifc_file.write(fn_output)
         IfcMapConversion, IfcProjectedCRS = georeference_ifc.get_mapconversion_crs(ifc_file=ifc_file)
         df = pd.DataFrame(list(IfcProjectedCRS.__dict__.items()), columns= ['property', 'value'])
@@ -557,7 +622,7 @@ def fileOpener(filename):
 @app.route('/show/<filename>', methods=['POST'])
 def visualize(filename):
     fn = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    fn_output = re.sub('\.ifc$','_georeferenced.ifc', fn)
+    fn_output = re.sub(r'\.ifc$','_georeferenced.ifc', fn)
     if not os.path.exists(fn_output):
         fn_output = fn
     ifc_file = ifcopenshell.open(fn_output)
@@ -653,7 +718,7 @@ def visualize(filename):
 @app.route('/download/<filename>', methods=['GET'])
 def download(filename):
     # Define the path to the GeoJSON file
-    fn = re.sub('\.ifc$','_georeferenced.ifc', filename)
+    fn = re.sub(r'\.ifc$','_georeferenced.ifc', filename)
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], fn)
 
     # Ensure the file exists
