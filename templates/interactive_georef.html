@@ -393,12 +393,36 @@
                             
                             // Update building viewer with actual dimensions
                             const viewer = document.getElementById('building-viewer');
+                            
+                            // Calculate display dimensions maintaining aspect ratio
+                            const maxWidth = 400; // Maximum width for the viewer
+                            const maxHeight = 300; // Maximum height for the viewer
+                            
+                            // Get building dimensions in meters
+                            const buildingWidth = ifcBounds.dimensions[0] / 1000; // Convert mm to m
+                            const buildingHeight = ifcBounds.dimensions[1] / 1000; // Convert mm to m
+                            
+                            // Calculate aspect ratio
+                            const aspectRatio = buildingWidth / buildingHeight;
+                            
+                            // Calculate display dimensions maintaining aspect ratio
+                            let displayWidth, displayHeight;
+                            if (aspectRatio > maxWidth / maxHeight) {
+                                // Building is wider than display area, constrain by width
+                                displayWidth = maxWidth;
+                                displayHeight = maxWidth / aspectRatio;
+                            } else {
+                                // Building is taller than display area, constrain by height
+                                displayHeight = maxHeight;
+                                displayWidth = maxHeight * aspectRatio;
+                            }
+                            
                             viewer.innerHTML = `
                                 <div style="text-align: center; color: #333;">
                                     <p><strong>IFC Model: ${filename}</strong></p>
                                     <p>Dimensions: ${(ifcBounds.dimensions[0]/1000).toFixed(3)}m × ${(ifcBounds.dimensions[1]/1000).toFixed(3)}m × ${(ifcBounds.dimensions[2]/1000).toFixed(3)}m</p>
                                     <p>Click anywhere to select control points</p>
-                                    <div style="width: 300px; height: 200px; border: 2px dashed #007bff; margin: 20px auto; position: relative; background: linear-gradient(45deg, #f0f8ff 25%, transparent 25%), linear-gradient(-45deg, #f0f8ff 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f8ff 75%), linear-gradient(-45deg, transparent 75%, #f0f8ff 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;">
+                                    <div style="width: ${displayWidth}px; height: ${displayHeight}px; border: 2px dashed #007bff; margin: 20px auto; position: relative; background: linear-gradient(45deg, #f0f8ff 25%, transparent 25%), linear-gradient(-45deg, #f0f8ff 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f8ff 75%), linear-gradient(-45deg, transparent 75%, #f0f8ff 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;">
                                         <div style="position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.8); padding: 2px 5px; font-size: 12px;">
                                             Real IFC Building (${ifcBounds.coordinates_count} elements)
                                         </div>
@@ -423,13 +447,28 @@
         }
         
         function loadSimulatedModel() {
-            // Fallback: Simulate loading a building model
+            // Fallback: Simulate loading a building model with default rectangular dimensions
             const viewer = document.getElementById('building-viewer');
+            
+            // Use default rectangular dimensions for simulation
+            const maxWidth = 400;
+            const maxHeight = 300;
+            const defaultAspectRatio = 1.5; // Default to 3:2 aspect ratio
+            
+            let displayWidth, displayHeight;
+            if (defaultAspectRatio > maxWidth / maxHeight) {
+                displayWidth = maxWidth;
+                displayHeight = maxWidth / defaultAspectRatio;
+            } else {
+                displayHeight = maxHeight;
+                displayWidth = maxHeight * defaultAspectRatio;
+            }
+            
             viewer.innerHTML = `
                 <div style="text-align: center; color: #333;">
                     <p><strong>Simulated Building Model</strong></p>
                     <p>Click anywhere to select control points</p>
-                    <div style="width: 300px; height: 200px; border: 2px dashed #007bff; margin: 20px auto; position: relative; background: linear-gradient(45deg, #f0f8ff 25%, transparent 25%), linear-gradient(-45deg, #f0f8ff 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f8ff 75%), linear-gradient(-45deg, transparent 75%, #f0f8ff 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;">
+                    <div style="width: ${displayWidth}px; height: ${displayHeight}px; border: 2px dashed #007bff; margin: 20px auto; position: relative; background: linear-gradient(45deg, #f0f8ff 25%, transparent 25%), linear-gradient(-45deg, #f0f8ff 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f0f8ff 75%), linear-gradient(-45deg, transparent 75%, #f0f8ff 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;">
                         <div style="position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.8); padding: 2px 5px; font-size: 12px;">Building Floor Plan</div>
                     </div>
                     <p style="font-size: 12px; color: #666;">Upload an IFC file first for accurate coordinates.</p>
@@ -438,9 +477,16 @@
         }
         
         function onBuildingClick(event) {
-            const rect = event.currentTarget.getBoundingClientRect();
+            // Find the building floor plan div (the actual clickable area)
+            const buildingDiv = event.target.closest('.viewer-container').querySelector('div[style*="border: 2px dashed"]');
+            if (!buildingDiv) return;
+            
+            const rect = buildingDiv.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
+            
+            // Only process clicks within the building div bounds
+            if (x < 0 || y < 0 || x > rect.width || y > rect.height) return;
             
             // Convert screen coordinates to building coordinates
             let buildingX, buildingY, buildingZ = 0;
@@ -470,13 +516,13 @@
             
             buildingPoints.push(point);
             
-            // Add visual marker
+            // Add visual marker positioned relative to the building div
             const marker = document.createElement('div');
             marker.className = 'point-marker building-point';
             marker.style.left = x + 'px';
             marker.style.top = y + 'px';
             marker.title = `P${buildingPoints.length}: (${buildingX.toFixed(6)}, ${buildingY.toFixed(6)}, ${buildingZ.toFixed(6)})`;
-            event.currentTarget.appendChild(marker);
+            buildingDiv.appendChild(marker);
             
             updateUI();
             
