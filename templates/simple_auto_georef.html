@@ -55,7 +55,7 @@
         <div class="info-box">
             <strong>What this does:</strong><br>
             • Automatically sets 5 reference points for your IFC file<br>
-            • Uses proper coordinates for Islamabad, Pakistan (EPSG:32643)<br>
+            • Uses proper coordinates for Zurich, Switzerland (EPSG:2056)<br>
             • Goes directly to georeferencing without manual entry<br>
             • No need to click points or enter coordinates manually!
         </div>
@@ -90,7 +90,7 @@
         function testGeoreferencing(filename) {
             showStatus('Processing...', 'info');
             
-            // Pre-defined points optimized for Islamabad
+            // Pre-defined points optimized for Zurich, Switzerland
             const buildingPoints = [
                 { building: { x: 0, y: 0, z: 0 } },
                 { building: { x: 100, y: 0, z: 0 } },
@@ -100,11 +100,11 @@
             ];
             
             const mapPoints = [
-                { coordinates: { easting: 319050, northing: 3728873, elevation: 100 } },
-                { coordinates: { easting: 319150, northing: 3728873, elevation: 100 } },
-                { coordinates: { easting: 319050, northing: 3728973, elevation: 100 } },
-                { coordinates: { easting: 319150, northing: 3728973, elevation: 100 } },
-                { coordinates: { easting: 319100, northing: 3728923, elevation: 110 } }
+                { coordinates: { easting: 2680000, northing: 1240000, elevation: 400 } },
+                { coordinates: { easting: 2680100, northing: 1240000, elevation: 400 } },
+                { coordinates: { easting: 2680000, northing: 1240100, elevation: 400 } },
+                { coordinates: { easting: 2680100, northing: 1240100, elevation: 400 } },
+                { coordinates: { easting: 2680050, northing: 1240050, elevation: 410 } }
             ];
 
             // Submit to auto georeferencing
@@ -115,7 +115,7 @@
                     filename: filename,
                     buildingPoints: buildingPoints,
                     mapPoints: mapPoints,
-                    epsgCode: 'EPSG:32643'
+                    epsgCode: 'EPSG:2056'
                 })
             })
             .then(response => response.json())

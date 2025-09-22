@@ -106,7 +106,7 @@
                     <li><strong>Building Point 3:</strong> (0, 100, 0) → <strong>Map:</strong> (319050, 3728973, 544) meters</li>
                 </ul>
             </li>
-            <li>EPSG:32643 (UTM Zone 43N for Islamabad)</li>
+            <li>EPSG:2056 (CH1903+ / LV95 for Switzerland)</li>
             <li>Auto-submit the georeferencing</li>
             <li>View the result on the map</li>
         </ol>
@@ -130,9 +130,9 @@
             ];
             
             const mapPoints = [
-                { coordinates: { easting: 319050, northing: 3728873, elevation: 544 } },
-                { coordinates: { easting: 319150, northing: 3728873, elevation: 544 } },
-                { coordinates: { easting: 319050, northing: 3728973, elevation: 544 } }
+                { coordinates: { easting: 2680000, northing: 1240000, elevation: 400 } },
+                { coordinates: { easting: 2680100, northing: 1240000, elevation: 400 } },
+                { coordinates: { easting: 2680000, northing: 1240100, elevation: 400 } }
             ];
             
             // Send to auto georeference endpoint
@@ -145,7 +145,7 @@
                     filename: filename,
                     buildingPoints: buildingPoints,
                     mapPoints: mapPoints,
-                    epsgCode: 'EPSG:32643'
+                    epsgCode: 'EPSG:2056'
                 })
             })
             .then(response => response.json())

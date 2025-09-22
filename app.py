@@ -325,7 +325,7 @@ def survey_points(filename):
     auto_points = session.get('auto_points')
     if auto_points and auto_points.get('filename') == filename:
         # Auto-populate with interactive points
-        session['target_epsg'] = auto_points.get('epsg_code', 'EPSG:32643')
+        session['target_epsg'] = auto_points.get('epsg_code', 'EPSG:2056')
         session['rows'] = len(auto_points.get('building_points', []))
         epsg_code = session.get('target_epsg')
         
@@ -506,11 +506,11 @@ def calculate(filename):
         #seperater
         if not Refl and rows == 1:
             Rotation_solution = 0
-            # Use reciprocal of coeff for proper IFC transformation
+            # Use correct coefficient for proper IFC transformation
             if coeff == 0:
                 return "Error: Invalid scaling coefficient (cannot be zero). Please restart the georeferencing process.", 400
                 
-            S_solution = 1.0/coeff  # This correctly scales from IFC mm to CRS meters
+            S_solution = coeff  # This correctly scales from IFC units to CRS units
             ro = ifc_file.by_type("IfcGeometricRepresentationContext")[0].TrueNorth
             if ro is not None and ro.is_a("IfcDirection"):
                 xord , xabs = round(float(ro[0][0]),6) , round(float(ro[0][1]),6)
@@ -519,9 +519,11 @@ def calculate(filename):
             Rotation_solution = math.atan2(xord,xabs)
             A = math.cos(Rotation_solution)
             B = math.sin(Rotation_solution)
-            # Fix coordinate transformation - use correct transformation formula
-            E_solution = float(request.form[f'x_prime{0}']) - (A*float(request.form[f'x{0}'])*S_solution) + (B*float(request.form[f'y{0}'])*S_solution)
-            N_solution = float(request.form[f'y_prime{0}']) - (B*float(request.form[f'x{0}'])*S_solution) - (A*float(request.form[f'y{0}'])*S_solution)
+            # Fix coordinate transformation - use correct transformation formula  
+            # Standard 2D transformation: [X'] = [cos -sin] [X*S] + [E]
+            #                             [Y']   [sin  cos] [Y*S]   [N]
+            E_solution = float(request.form[f'x_prime{0}']) - (A*float(request.form[f'x{0}'])*S_solution - B*float(request.form[f'y{0}'])*S_solution)
+            N_solution = float(request.form[f'y_prime{0}']) - (B*float(request.form[f'x{0}'])*S_solution + A*float(request.form[f'y{0}'])*S_solution)
             session['zt'] = float(request.form[f'z_prime{0}'])
             session['bz'] = float(request.form[f'z{0}'])
             H_solution = float(request.form[f'z_prime{0}']) - (float(request.form[f'z{0}'])*S_solution)
@@ -530,11 +532,11 @@ def calculate(filename):
         else:
             if rows == 0:
                 Rotation_solution = 0
-                # Use reciprocal of coeff for proper IFC transformation
+                # Use correct coefficient for proper IFC transformation
                 if coeff == 0:
                     return "Error: Invalid scaling coefficient (cannot be zero). Please restart the georeferencing process.", 400
                 
-                S_solution = 1.0/coeff  # This correctly scales from IFC mm to CRS meters
+                S_solution = coeff  # This correctly scales from IFC units to CRS units
                 ro = ifc_file.by_type("IfcGeometricRepresentationContext")[0].TrueNorth
                 if ro is not None and ro.is_a("IfcDirection"):
                     xord , xabs = round(float(ro[0][0]),6) , round(float(ro[0][1]),6)
@@ -556,8 +558,10 @@ def calculate(filename):
                     return "Error: Missing coordinate data for georeferencing. Please restart the georeferencing process.", 400
                 
                 # Fix coordinate transformation - use correct transformation formula
-                E_solution = xt - (A*S_solution*bx) + (B*S_solution*by)
-                N_solution = yt - (B*S_solution*bx) - (A*S_solution*by)
+                # Standard 2D transformation: [X'] = [cos -sin] [X*S] + [E]
+                #                             [Y']   [sin  cos] [Y*S]   [N]
+                E_solution = xt - (A*S_solution*bx - B*S_solution*by)
+                N_solution = yt - (B*S_solution*bx + A*S_solution*by)
                 H_solution = zt - (S_solution*bz)
             else:
                 for row in range(rows):
@@ -594,8 +598,11 @@ def calculate(filename):
                             Y_prime = data["Y_prime"]
                             Z_prime = data["Z_prime"]
 
-                            eq1 = S * np.cos(Rotation) * X - S * np.sin(Rotation) * Y + E - X_prime
-                            eq2 = S * np.sin(Rotation) * X + S * np.cos(Rotation) * Y + N - Y_prime
+                            # Standard 2D transformation equations
+                            # X' = S * (cos*X - sin*Y) + E
+                            # Y' = S * (sin*X + cos*Y) + N
+                            eq1 = S * (np.cos(Rotation) * X - np.sin(Rotation) * Y) + E - X_prime
+                            eq2 = S * (np.sin(Rotation) * X + np.cos(Rotation) * Y) + N - Y_prime
                             eq3 = S*Z + H - Z_prime
                             eqs.extend([eq1, eq2, eq3])
 
@@ -625,6 +632,17 @@ def calculate(filename):
 
         Rotation_degrees = (180 / math.pi) * Rotation_solution
         rDeg = Rotation_degrees - (360*round(Rotation_degrees/360))
+
+        # Debug output for coordinate transformation validation
+        print(f"Coordinate Transformation Results:")
+        print(f"  Scale (S_solution): {S_solution}")
+        print(f"  Rotation (degrees): {rDeg:.6f}")
+        print(f"  Translation E: {E_solution:.6f}")
+        print(f"  Translation N: {N_solution:.6f}")
+        print(f"  Translation H: {H_solution:.6f}")
+        print(f"  Unit coefficient: {coeff}")
+        print(f"  X-axis abscissa: {math.cos(Rotation_solution):.6f}")
+        print(f"  X-axis ordinate: {math.sin(Rotation_solution):.6f}")
 
         target_epsg = "EPSG:"+str(session.get('target_epsg'))
         georeference_ifc.set_mapconversion_crs(ifc_file=ifc_file,
@@ -698,14 +716,18 @@ def visualize(filename):
         E=E*S
         N = N*S
         ortz= ortz*S
-        xx = S * org[0]* A - S * org[1]*B + E
-        yy = S * org[1]* A + S * org[1]*B + N
+        # Apply correct transformation: [X'] = [cos -sin] [X*S] + [E]
+        #                               [Y']   [sin  cos] [Y*S]   [N]
+        xx = S * org[0] * A - S * org[1] * B + E
+        yy = S * org[0] * B + S * org[1] * A + N
         z = S * org[2] + ortz
         S = saver
         Snew = S
     else:
-        xx = S * org[0]* A - S * org[1]*B + E
-        yy = S * org[1]* A + S * org[1]*B + N
+        # Apply correct transformation: [X'] = [cos -sin] [X*S] + [E]
+        #                               [Y']   [sin  cos] [Y*S]   [N]
+        xx = S * org[0] * A - S * org[1] * B + E
+        yy = S * org[0] * B + S * org[1] * A + N
         zz = S * org[2] + ortz
         Snew = S/eff
     if xx==0 and yy==0:
@@ -803,7 +825,7 @@ def auto_georeference():
         filename = data.get('filename')
         building_points = data.get('buildingPoints', [])
         map_points = data.get('mapPoints', [])
-        epsg_code = data.get('epsgCode', 'EPSG:32643')  # Default to EPSG:32643 for Islamabad
+        epsg_code = data.get('epsgCode', 'EPSG:2056')  # Default to EPSG:2056 for Switzerland
         
         # Store everything in session
         session['target_epsg'] = int(epsg_code.replace('EPSG:', ''))

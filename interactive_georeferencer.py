@@ -26,7 +26,7 @@ class InteractiveGeoreferencer:
         self.fig = None
         self.ax = None
         self.building_elements = []
-        self.epsg_code = 'EPSG:32643'  # Default to Islamabad UTM
+        self.epsg_code = 'EPSG:2056'  # Default to Switzerland CH1903+ / LV95
         
         # Initialize coordinate transformer
         self.transformer_to_wgs84 = pyproj.Transformer.from_crs(self.epsg_code, 'EPSG:4326', always_xy=True)

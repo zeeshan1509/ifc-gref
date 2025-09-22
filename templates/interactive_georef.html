@@ -240,8 +240,10 @@
                 <div class="controls">
                     <label for="epsg-select">Coordinate System:</label>
                     <select id="epsg-select">
+                        <!-- <option value="2056" selected>EPSG:2056 (CH1903+ / LV95 - Switzerland)</option> -->
+                        <!-- <option value="21781">EPSG:21781 (CH1903 / LV03 - Switzerland Legacy)</option> -->
+                        <option value="32632">EPSG:32632 (WGS84 UTM 32N - Central Europe)</option>
                         <option value="32643">EPSG:32643 (WGS84 UTM 43N - Pakistan)</option>
-                        <option value="24313">EPSG:24313 (Kalianpur UTM 43N)</option>
                         <option value="3857">EPSG:3857 (Web Mercator)</option>
                     </select>
                     <button class="btn btn-danger" onclick="clearMapPoints()" disabled id="clear-map">Clear Map Points</button>
@@ -312,8 +314,8 @@
         });
         
         function initializeMap() {
-            // Initialize Leaflet map centered on Islamabad
-            map = L.map('map').setView([33.6844, 73.0479], 13);
+            // Initialize Leaflet map centered on Zurich, Switzerland
+            map = L.map('map').setView([47.3769, 8.5417], 13);
             
             // Add OpenStreetMap tiles
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -322,12 +324,6 @@
             
             // Add click handler to map
             map.on('click', onMapClick);
-            
-            // Add a marker for Islamabad center
-            L.marker([33.6844, 73.0479])
-                .addTo(map)
-                .bindPopup('Islamabad Center<br>Click to place your building here')
-                .openPopup();
         }
         
         function setupEventListeners() {
@@ -539,7 +535,79 @@
             
             let easting, northing;
             
-            if (epsg === '32643') {
+            if (epsg === '2056') {
+                // CH1903+ / LV95 coordinate system for Switzerland
+                // This is a simplified approximation for demonstration
+                // In production, use a proper coordinate transformation library
+                const lat = latlng.lat;
+                const lng = latlng.lng;
+                
+                // Approximate transformation to CH1903+ / LV95
+                // Reference point: Bern (46.95°N, 7.44°E) ≈ (2600000, 1200000)
+                const lat0 = 46.95; // Reference latitude
+                const lng0 = 7.44;  // Reference longitude
+                const e0 = 2600000; // Reference easting
+                const n0 = 1200000; // Reference northing
+                
+                // Approximate conversion (simplified)
+                const dlat = lat - lat0;
+                const dlng = lng - lng0;
+                
+                easting = e0 + dlng * 111320 * Math.cos(lat * Math.PI / 180);
+                northing = n0 + dlat * 110540;
+                
+            } else if (epsg === '21781') {
+                // CH1903 / LV03 coordinate system for Switzerland (legacy)
+                const lat = latlng.lat;
+                const lng = latlng.lng;
+                
+                // Approximate transformation to CH1903 / LV03
+                // Reference point: Bern (46.95°N, 7.44°E) ≈ (600000, 200000)
+                const lat0 = 46.95;
+                const lng0 = 7.44;
+                const e0 = 600000;
+                const n0 = 200000;
+                
+                const dlat = lat - lat0;
+                const dlng = lng - lng0;
+                
+                easting = e0 + dlng * 111320 * Math.cos(lat * Math.PI / 180);
+                northing = n0 + dlat * 110540;
+                
+            } else if (epsg === '32632') {
+                // UTM Zone 32N for Central Europe
+                const lat = latlng.lat;
+                const lng = latlng.lng;
+                
+                // UTM Zone 32N (central meridian 9°E) conversion
+                const k0 = 0.9996;
+                const a = 6378137; // WGS84 semi-major axis
+                const f = 1/298.257223563; // WGS84 flattening
+                const e = Math.sqrt(2*f - f*f); // eccentricity
+                
+                const latRad = lat * Math.PI / 180;
+                const lngRad = lng * Math.PI / 180;
+                const centralMeridian = 9 * Math.PI / 180; // UTM Zone 32N
+                
+                const deltaLng = lngRad - centralMeridian;
+                
+                const N = a / Math.sqrt(1 - e*e * Math.sin(latRad)*Math.sin(latRad));
+                const T = Math.tan(latRad) * Math.tan(latRad);
+                const C = (e*e/(1-e*e)) * Math.cos(latRad) * Math.cos(latRad);
+                const A = Math.cos(latRad) * deltaLng;
+                
+                const M = a * ((1 - e*e/4 - 3*e*e*e*e/64 - 5*Math.pow(e,6)/256) * latRad
+                           - (3*e*e/8 + 3*e*e*e*e/32 + 45*Math.pow(e,6)/1024) * Math.sin(2*latRad)
+                           + (15*e*e*e*e/256 + 45*Math.pow(e,6)/1024) * Math.sin(4*latRad)
+                           - (35*Math.pow(e,6)/3072) * Math.sin(6*latRad));
+                
+                easting = k0 * N * (A + (1-T+C)*A*A*A/6 + (5-18*T+T*T+72*C-58*(e*e/(1-e*e)))*Math.pow(A,5)/120) + 500000;
+                northing = k0 * (M + N*Math.tan(latRad)*(A*A/2 + (5-T+9*C+4*C*C)*Math.pow(A,4)/24 + (61-58*T+T*T+600*C-330*(e*e/(1-e*e)))*Math.pow(A,6)/720));
+                
+                // Ensure we're in the northern hemisphere
+                if (northing < 0) northing += 10000000;
+                
+            } else if (epsg === '32643') {
                 // Simple and accurate UTM conversion for Pakistan
                 // Using a more direct approach that matches the backend transformation
                 const lat = latlng.lat;
@@ -570,16 +638,13 @@
                 easting = k0 * N * (A + (1-T+C)*A*A*A/6 + (5-18*T+T*T+72*C-58*(e*e/(1-e*e)))*Math.pow(A,5)/120) + 500000;
                 northing = k0 * (M + N*Math.tan(latRad)*(A*A/2 + (5-T+9*C+4*C*C)*A*A*A*A/24 + (61-58*T+T*T+600*C-330*(e*e/(1-e*e)))*Math.pow(A,6)/720));
                 
-                // Ensure we're in the northern hemisphere
-                if (northing < 0) northing += 10000000;
-                
             } else {
                 // Simplified conversion for other systems
                 easting = latlng.lng * 111320;
                 northing = latlng.lat * 110540;
             }
             
-            const elevation = 540; // Default elevation for Islamabad
+            const elevation = 400; // Default elevation for Zurich area (Switzerland)
             
             // Validate map point distances to ensure reasonable building scale
             if (mapPoints.length > 0) {
