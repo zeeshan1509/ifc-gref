@@ -1,136 +1,351 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Results</title>
-    <link rel="icon" type="image/x-icon" href="../static/images/flavicon.png">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Results - IFC Georeferencing</title>
+    <link rel="icon" type="image/x-icon"  />
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            background-color: #f8f9fa;
-            align-items: center;
-            margin: 0;
-            padding: 20px;
-            flex-direction: column;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", "Segoe UI", sans-serif;
+        background: linear-gradient(135deg, #f3f3f3 0%, #e8e8e8 100%);
+        min-height: 100vh;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .header {
+        width: 100%;
+        max-width: 900px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding: 0 8px;
+      }
+
+      .logo {
+        max-height: 60px;
+        transition: transform 0.3s ease;
+      }
+
+      .logo:hover {
+        transform: scale(1.05);
+      }
+
+      .container {
+        background-color: #fff;
+        padding: 40px;
+        border-radius: 16px;
+        box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        max-width: 900px;
+        width: 100%;
+        position: relative;
+      }
+
+      @media (max-width: 768px) {
         .container {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-            max-width: 800px;
-            width: 100%;
-            position: relative;
+          padding: 24px;
         }
+
         .header {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
+          flex-direction: column;
+          gap: 16px;
         }
-        .logo {
-            max-height: 60px;
+      }
+
+      h1 {
+        margin-bottom: 24px;
+        font-size: 28px;
+        font-weight: 700;
+        color: #111827;
+        position: relative;
+        display: inline-block;
+      }
+
+      h1::after {
+        content: "";
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 4px;
+        background: linear-gradient(90deg, #b0c70d, #8fa30a);
+        border-radius: 2px;
+      }
+
+      .success-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #fcffe7 0%, #f0f8e0 100%);
+        border: 2px solid #b0c70d;
+        padding: 12px 24px;
+        border-radius: 12px;
+        margin-bottom: 32px;
+        font-weight: 600;
+        color: #111827;
+      }
+
+      .error-message {
+        background: linear-gradient(135deg, #fee 0%, #fdd 100%);
+        border: 2px solid #ee5253;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+        white-space: pre-wrap;
+        text-align: left;
+        color: #c82333;
+        line-height: 1.6;
+      }
+
+      .section {
+        margin-bottom: 40px;
+      }
+
+      .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 16px;
+        text-align: left;
+        padding-left: 12px;
+        border-left: 4px solid #b0c70d;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 24px;
+        font-size: 14px;
+        border: 1px solid #d1d5db;
+      }
+
+      th,
+      td {
+        border: 1px solid #d1d5db;
+        padding: 10px 14px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        font-weight: 600;
+        background-color: #f9fafb;
+        color: #111827;
+      }
+
+      td {
+        background-color: #fff;
+        color: #111827;
+      }
+
+      .actions {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 32px;
+      }
+
+      .btn {
+        background: #b0c70d;
+        color: white;
+        border: none;
+        padding: 14px 32px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 600;
+        font-size: 15px;
+        box-shadow: 0 4px 12px rgba(176, 199, 13, 0.25);
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(176, 199, 13, 0.35);
+      }
+
+      .btn:active {
+        transform: translateY(0);
+      }
+
+      .btn-secondary {
+        background: #b0c70d;
+        box-shadow: 0 4px 12px rgba(107, 114, 128, 0.25);
+      }
+
+      .btn-secondary:hover {
+        box-shadow: 0 6px 16px rgba(107, 114, 128, 0.35);
+      }
+
+      .btn-link {
+        text-decoration: none;
+      }
+
+      .loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+
+      .loader-content {
+        text-align: center;
+        color: white;
+      }
+
+      .loader img {
+        width: 120px;
+        height: 120px;
+        animation: fadeInOut 2s infinite;
+        margin-bottom: 20px;
+      }
+
+      .loader-text {
+        font-size: 18px;
+        font-weight: 600;
+        color: #fcffe7;
+      }
+
+      @keyframes fadeInOut {
+        0% {
+          opacity: 0.3;
+          transform: scale(0.95);
         }
-        h1 {
-            margin-bottom: 20px;
-            font-size: 24px;
-            color: #333;
+        50% {
+          opacity: 1;
+          transform: scale(1);
         }
-        .error-message {
-            color: red;
-            margin-bottom: 20px;
-            white-space: pre-wrap;
+        100% {
+          opacity: 0.3;
+          transform: scale(0.95);
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        table, th, td {
-            border: 1px solid #ddd;
-        }
-        th, td {
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        .btn {
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            margin: 10px 0;
-        }
-        .btn:hover {
-            background-color: #0056b3;
-        }
-        .btn-link {
-            text-decoration: none;
-        }
-        .loader {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            display: none;
-        }
-        .loader img {
-            width: 100px;
-            height: 100px;
-            animation: fadeInOut 2s infinite;
-        }
-        @keyframes fadeInOut {
-            0% { opacity: 0; }
-            50% { opacity: 1; }
-            100% { opacity: 0; }
-        }
+      }
+
+      .info-card {
+        background: linear-gradient(135deg, #fcffe7 0%, #f8fce0 100%);
+        border: 2px solid #b0c70d;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+        text-align: left;
+      }
+
+      .info-card h3 {
+        color: #111827;
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+
+      .info-card p {
+        color: #374151;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .divider {
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #d1d5db, transparent);
+        margin: 32px 0;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="header">
-        <img src="{{ url_for('static', filename='images/logo1.png') }}" alt="Logo 1" class="logo">
-        <a href="https://3d.bk.tudelft.nl/"><img src="../static/images/logo2.png" alt="Logo 2" class="logo"></a>
+      <img
+        src="{{ url_for('static', filename='images/logo.webp') }}"
+        alt="Logo 1"
+        class="logo"
+      />
     </div>
+
     <div class="container">
+      {% if not message %}
+      <div class="success-badge">✓ Georeferencing Completed Successfully</div>
+      {% endif %} {% if message %}
+      <pre class="error-message">{{ message | safe }}</pre>
+      {% endif %}
 
-        {% if message %}
-        <pre class="error-message">{{ message | safe }}</pre>
-        {% endif %}
-        <h1>IFCProjectedCRS Data</h1>
+      <div class="section">
+        <h1>IFC Georeferencing Results</h1>
+
+        <div class="info-card">
+          <h3>📍 Coordinate Reference System</h3>
+          <p>
+            Your IFC file has been successfully georeferenced with the spatial
+            data below.
+          </p>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">IFCProjectedCRS Data</div>
         {{ table_f | safe }}
+      </div>
 
-        <h1>IFCMapConversion Data</h1>
+      <div class="divider"></div>
+
+      <div class="section">
+        <div class="section-title">IFCMapConversion Data</div>
         {{ table_g | safe }}
+      </div>
 
-        <form method="POST" action="{{ url_for('visualize', filename=filename) }}" onsubmit="showLoader()">
-            <input type="submit" value="Show on Map" class="btn">
+      <div class="actions">
+        <form
+          method="POST"
+          action="{{ url_for('visualize', filename=filename) }}"
+          onsubmit="showLoader()"
+          style="margin: 0"
+        >
+          <input type="submit" value="Show on Map" class="btn" />
         </form>
 
         {% if not message %}
-        <a href="{{ url_for('download', filename=filename) }}" download class="btn-link">
-            <button class="btn">Download Georeferenced IFC</button>
+        <a
+          href="{{ url_for('download', filename=filename) }}"
+          download
+          class="btn-link"
+        >
+          <button class="btn btn-secondary">
+            Download Georeferenced IFC
+          </button>
         </a>
         {% endif %}
-        
-        <div class="loader" id="loader">
-            <img src="{{ url_for('static', filename='images/loading.png') }}" alt="Loading...">
+      </div>
+
+      <div class="loader" id="loader">
+        <div class="loader-content">
+          <img
+            src="{{ url_for('static', filename='images/loading.png') }}"
+            alt="Loading..."
+          />
+          <div class="loader-text">Loading visualization...</div>
         </div>
+      </div>
     </div>
 
     <script>
-        function showLoader() {
-            document.getElementById('loader').style.display = 'block';
-        }
+      function showLoader() {
+        document.getElementById("loader").style.display = "flex";
+      }
     </script>
-</body>
+  </body>
 </html>
