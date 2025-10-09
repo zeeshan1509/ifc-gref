@@ -225,7 +225,6 @@
     document.querySelectorAll('input[name="toggle"]').forEach((elem) => {
         elem.addEventListener('change', function(event) {
             const selectedValue = event.target.value;
-            console.log("Radio button selected value: ", selectedValue);
             if (selectedValue === '1') {
                 org[2] = -lz;
             } else {

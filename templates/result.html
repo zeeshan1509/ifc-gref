@@ -345,7 +345,7 @@
           </button>
         </a>
         
-        <button class="btn btn-upload" id="uploadBtn" onclick="uploadToProject()">
+        <button class="btn btn-secondary" id="uploadBtn" onclick="uploadToProject()">
           Upload to Project
         </button>
         {% endif %}
@@ -384,10 +384,6 @@
         const projectId = getProjectIdFromURL();
         const authToken = getTokenFromURL();
         const uploadBtn = document.getElementById('uploadBtn');
-        
-        console.log('Current URL:', window.location.href);
-        console.log('Project ID found:', projectId);
-        console.log('Auth token found:', authToken ? 'Yes' : 'No');
         
         if (uploadBtn) {
           if (projectId) {
@@ -466,8 +462,6 @@
           const filename = '{{ filename }}';
           const downloadUrl = '{{ url_for("download", filename=filename) }}';
           
-          console.log('Downloading file from:', downloadUrl);
-          
           // Fetch the file
           const response = await fetch(downloadUrl);
           if (!response.ok) {
@@ -475,15 +469,11 @@
           }
           
           const blob = await response.blob();
-          console.log('File downloaded, size:', blob.size, 'bytes');
           
           // Create FormData for the upload
           const formData = new FormData();
           const file = new File([blob], filename, { type: 'application/octet-stream' });
           formData.append('files', file);
-          
-          console.log('Uploading to project:', projectId);
-          console.log('Using auth token:', authToken ? 'Yes' : 'No');
           
           // Prepare headers
           const headers = {};
@@ -493,8 +483,6 @@
           
           // Upload to the project API
           const uploadUrl = `{{ api_base_url }}/api/ifc/${projectId}/upload/`;
-          console.log('Upload URL:', uploadUrl);
-          console.log('Headers:', headers);
           
           const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
@@ -504,15 +492,11 @@
             body: formData
           });
 
-          console.log('Upload response status:', uploadResponse.status);
-
           if (uploadResponse.ok) {
             const result = await uploadResponse.json();
             alert('File uploaded successfully to project!');
-            console.log('Upload result:', result);
           } else {
             const errorText = await uploadResponse.text();
-            console.error('Upload error response:', errorText);
             
             // Handle authentication errors specifically
             if (uploadResponse.status === 401) {

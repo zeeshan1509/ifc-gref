@@ -211,8 +211,6 @@
     async function selectContribution(element, contributionId, sessionId) {
         deselectAll('contributions');
         element.classList.add('selected');
-        // console.log("Selected Contribution ID:", contributionId);
-        // alert(`Selected Contribution ID: ${contributionId}`);
         const contributionResponse = await fetch(`https://apis.bimserver.center/v1/BIMSERVER/contributions/${contributionId}?expand=owner&lang_interface=en`, {
             method: 'GET',
             headers: {

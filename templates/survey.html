@@ -647,8 +647,6 @@
       const mapPoints = {{ map_points | tojson }};
 
       function autoFillAndSubmit() {
-          console.log('Auto-filling coordinates...');
-
           for (let i = 0; i < buildingPoints.length; i++) {
               const buildingPoint = buildingPoints[i];
               const mapPoint = mapPoints[i];
@@ -734,7 +732,7 @@
                   autoPopulateForm(data);
                   sessionStorage.removeItem('interactiveGeorefData'); // Clean up
               } catch (e) {
-                  console.log('No interactive georeferencing data found');
+                  console.error('No interactive georeferencing data found');
               }
           }
       });
@@ -837,29 +835,21 @@
         const urlParams = new URLSearchParams(window.location.search);
         const projectId = urlParams.get('project_id');
         const token = urlParams.get('token');
-        
-        console.log('Survey page - Current URL:', window.location.href);
-        console.log('Survey page - Project ID found:', projectId);
-        console.log('Survey page - Token found:', token ? 'Yes' : 'No');
-        
+
         if (projectId) {
           // Store project_id in sessionStorage so it persists across routes
           sessionStorage.setItem('project_id', projectId);
-          console.log('Project ID stored in session storage:', projectId);
         } else {
           // Check if we already have a project_id stored
           const storedProjectId = sessionStorage.getItem('project_id');
-          console.log('No project_id in URL, checking stored value:', storedProjectId);
         }
         
         if (token) {
           // Store token in sessionStorage so it persists across routes
           sessionStorage.setItem('auth_token', token);
-          console.log('Token stored in session storage');
         } else {
           // Check if we already have a token stored
           const storedToken = sessionStorage.getItem('auth_token');
-          console.log('No token in URL, checking stored value:', storedToken ? 'Yes' : 'No');
         }
       });
     </script>
