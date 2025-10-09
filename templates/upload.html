@@ -170,6 +170,33 @@
       function showLoader() {
         loader.classList.remove("hidden");
       }
+      
+      // Capture and store project_id and token from URL when the page loads
+      document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('project_id');
+        const token = urlParams.get('token');
+        
+        console.log('Upload page - Current URL:', window.location.href);
+        console.log('Upload page - Project ID found:', projectId);
+        console.log('Upload page - Token found:', token ? 'Yes' : 'No');
+        
+        if (projectId) {
+          sessionStorage.setItem('project_id', projectId);
+          console.log('Project ID stored in session storage:', projectId);
+        } else {
+          const storedProjectId = sessionStorage.getItem('project_id');
+          console.log('No project_id in URL, checking stored value:', storedProjectId);
+        }
+        
+        if (token) {
+          sessionStorage.setItem('auth_token', token);
+          console.log('Token stored in session storage');
+        } else {
+          const storedToken = sessionStorage.getItem('auth_token');
+          console.log('No token in URL, checking stored value:', storedToken ? 'Yes' : 'No');
+        }
+      });
     </script>
   </body>
 </html>

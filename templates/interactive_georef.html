@@ -519,6 +519,25 @@
                 sessionStorage.setItem('selectedFilename', filename);
                 loadBuildingModel(filename);
             }
+            
+            // Capture and store project_id and token from URL
+            const projectId = urlParams.get('project_id');
+            const token = urlParams.get('token');
+            if (projectId) {
+                sessionStorage.setItem('project_id', projectId);
+                console.log('Project ID stored in session storage:', projectId);
+            } else {
+                const storedProjectId = sessionStorage.getItem('project_id');
+                console.log('No project_id in URL, checking stored value:', storedProjectId);
+            }
+            
+            if (token) {
+                sessionStorage.setItem('auth_token', token);
+                console.log('Token stored in session storage');
+            } else {
+                const storedToken = sessionStorage.getItem('auth_token');
+                console.log('No token in URL, checking stored value:', storedToken ? 'Yes' : 'No');
+            }
         });
         
         function initializeMap() {
@@ -907,7 +926,7 @@
             document.getElementById('instruction').innerHTML = `
                 <strong>Building points selected: ${buildingPoints.length}</strong><br>
                 Now click on the map to set geographic coordinates for each point.<br>
-                <span style="color: #e74c3c;"><strong>⚠️ Important:</strong> Click points close together (within a few meters) for a normal-sized building.</span><br>
+                <span><strong>⚠️ Important:</strong> Click points close together for a normal-sized building.</span><br>
                 Click in the same order as you selected the building points.
             `;
         }

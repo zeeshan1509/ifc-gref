@@ -18,11 +18,22 @@ import ifcopenshell.util.placement
 import subprocess
 import time
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv is not installed, skip loading .env file
+    pass
+
 
 app = Flask(__name__, static_url_path='/static', static_folder='static')
 app.secret_key = '88746898'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 ALLOWED_EXTENSIONS = {'ifc'}  # Define allowed file extensions as a set
+
+# Environment configuration
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:8000')
 
 # Function to check if a filename has an allowed extension
 def allowed_file(filename):
@@ -256,16 +267,16 @@ def upload_file():
             message2 = infoExt(filename,epsg)
             coeff = session.get('coeff')
             if coeff is None:
-                return render_template('result.html', filename=filename, table_f=html_table_f, table_g=html_table_g, message=message2)
+                return render_template('result.html', filename=filename, table_f=html_table_f, table_g=html_table_g, message=message2, api_base_url=API_BASE_URL)
 
             if int(coeff)!=1 and IfcMapConversion.Scale is None:
                 message += "There is a conflict between Scale factor and unit conversion. (Yet to be decided by buildingSmart.)"
                 session['scaleError']=True
-                return render_template('result.html', filename=filename, table_f=html_table_f, table_g=html_table_g, message=message)
+                return render_template('result.html', filename=filename, table_f=html_table_f, table_g=html_table_g, message=message, api_base_url=API_BASE_URL)
             if int(coeff)!=1 and int(IfcMapConversion.Scale) == 1:
                 message += "There is a conflict between Scale factor and unit conversion. (Yet to be decided by buildingSmart.)"
                 session['scaleError']=True
-            return render_template('result.html', filename=filename, table_f=html_table_f, table_g=html_table_g, message=message)
+            return render_template('result.html', filename=filename, table_f=html_table_f, table_g=html_table_g, message=message, api_base_url=API_BASE_URL)
         
         return redirect(url_for('convert_crs', filename=filename))  # Redirect to EPSG code input page
     else:
@@ -661,7 +672,7 @@ def calculate(filename):
         dg['value'] = dg['value'].astype(str)
         html_table_f = df.to_html()
         html_table_g = dg.to_html()
-        return render_template('result.html', filename=filename, table_f=html_table_f, table_g=html_table_g)
+        return render_template('result.html', filename=filename, table_f=html_table_f, table_g=html_table_g, api_base_url=API_BASE_URL)
     
 def fileOpener(filename):
     fn = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -942,6 +953,57 @@ def analyze_ifc_api(filename):
         
     except Exception as e:
         return {'error': str(e)}, 500
+
+@app.route('/api/upload-to-project/<project_id>', methods=['POST'])
+def upload_to_project(project_id):
+    """Proxy endpoint to upload files to external API to avoid CORS issues"""
+    import requests
+    
+    try:
+        # Get the file from the download endpoint
+        filename = request.json.get('filename') if request.is_json else request.form.get('filename')
+        auth_token = request.headers.get('Authorization')
+        
+        if not filename:
+            return jsonify({'error': 'Filename is required'}), 400
+            
+        # Check if file exists
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not os.path.exists(file_path):
+            return jsonify({'error': 'File not found'}), 404
+            
+        # Prepare the file for upload
+        with open(file_path, 'rb') as f:
+            files = {'files': (filename, f, 'application/octet-stream')}
+            
+            # Prepare headers
+            headers = {}
+            if auth_token:
+                headers['Authorization'] = auth_token
+                
+            # Make request to external API
+            external_url = f'{API_BASE_URL}/api/ifc/{project_id}/upload/'
+            
+            response = requests.post(
+                external_url,
+                files=files,
+                headers=headers,
+                timeout=60
+            )
+            
+            # Return the response from external API
+            if response.ok:
+                return jsonify(response.json()), response.status_code
+            else:
+                return jsonify({
+                    'error': f'Upload failed: {response.status_code}',
+                    'message': response.text
+                }), response.status_code
+                
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Network error: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5002)

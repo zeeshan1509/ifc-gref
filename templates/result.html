@@ -193,6 +193,22 @@
         text-decoration: none;
       }
 
+      .btn-upload {
+        background: #17a2b8;
+        box-shadow: 0 4px 12px rgba(23, 162, 184, 0.25);
+      }
+
+      .btn-upload:hover {
+        background: #138496;
+        box-shadow: 0 6px 16px rgba(23, 162, 184, 0.35);
+      }
+
+      .btn-upload:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
       .loader {
         position: fixed;
         top: 0;
@@ -328,6 +344,10 @@
             Download Georeferenced IFC
           </button>
         </a>
+        
+        <button class="btn btn-upload" id="uploadBtn" onclick="uploadToProject()">
+          Upload to Project
+        </button>
         {% endif %}
       </div>
 
@@ -343,8 +363,175 @@
     </div>
 
     <script>
+      // Authentication token helper function - get from URL params and sessionStorage
+      function getTokenFromURL() {
+        // First try to get from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlToken = urlParams.get('token');
+        
+        // If found in URL, store it and return it
+        if (urlToken) {
+          sessionStorage.setItem('auth_token', urlToken);
+          return urlToken;
+        }
+        
+        // If not in URL, try to get from sessionStorage
+        return sessionStorage.getItem('auth_token');
+      }
+
+      // Show upload button and add debug info
+      document.addEventListener('DOMContentLoaded', function() {
+        const projectId = getProjectIdFromURL();
+        const authToken = getTokenFromURL();
+        const uploadBtn = document.getElementById('uploadBtn');
+        
+        console.log('Current URL:', window.location.href);
+        console.log('Project ID found:', projectId);
+        console.log('Auth token found:', authToken ? 'Yes' : 'No');
+        
+        if (uploadBtn) {
+          if (projectId) {
+            uploadBtn.style.display = 'inline-block';
+            uploadBtn.textContent = `Upload to Project (${projectId})`;
+          } else {
+            uploadBtn.style.display = 'inline-block';
+            uploadBtn.textContent = 'Upload to Project (No Project ID)';
+            uploadBtn.style.opacity = '0.6';
+          }
+          
+          // Show warning if no auth token
+          if (!authToken) {
+            uploadBtn.style.backgroundColor = '#ffc107';
+            uploadBtn.title = 'Warning: No authentication token found. Upload may fail.';
+          }
+        }
+      });
+
       function showLoader() {
         document.getElementById("loader").style.display = "flex";
+      }
+
+      function getProjectIdFromURL() {
+        // First try to get from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlProjectId = urlParams.get('project_id');
+        
+        // If found in URL, store it and return it
+        if (urlProjectId) {
+          sessionStorage.setItem('project_id', urlProjectId);
+          return urlProjectId;
+        }
+        
+        // If not in URL, try to get from sessionStorage
+        return sessionStorage.getItem('project_id');
+      }
+
+      async function uploadToProject() {
+        const projectId = getProjectIdFromURL();
+        
+        if (!projectId) {
+          const userProjectId = prompt('Project ID not found in URL. Please enter your Project ID:');
+          if (!userProjectId) {
+            alert('Upload cancelled. Project ID is required.');
+            return;
+          }
+          // Use the manually entered project ID
+          return uploadWithProjectId(userProjectId);
+        }
+
+        return uploadWithProjectId(projectId);
+      }
+
+      async function uploadWithProjectId(projectId) {
+        const uploadBtn = document.getElementById('uploadBtn');
+        const originalText = uploadBtn.textContent;
+        
+        // Get authentication token
+        const authToken = getTokenFromURL();
+        
+        if (!authToken) {
+          const continueWithoutAuth = confirm('No authentication token found. Do you want to continue without authentication? (Upload may fail)');
+          if (!continueWithoutAuth) {
+            alert('Upload cancelled. Please login first to get an authentication token.');
+            return;
+          }
+        }
+        
+        // Disable button and show loading state
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Uploading...';
+
+        try {
+          // Get the georeferenced file
+          const filename = '{{ filename }}';
+          const downloadUrl = '{{ url_for("download", filename=filename) }}';
+          
+          console.log('Downloading file from:', downloadUrl);
+          
+          // Fetch the file
+          const response = await fetch(downloadUrl);
+          if (!response.ok) {
+            throw new Error('Failed to fetch the georeferenced file');
+          }
+          
+          const blob = await response.blob();
+          console.log('File downloaded, size:', blob.size, 'bytes');
+          
+          // Create FormData for the upload
+          const formData = new FormData();
+          const file = new File([blob], filename, { type: 'application/octet-stream' });
+          formData.append('files', file);
+          
+          console.log('Uploading to project:', projectId);
+          console.log('Using auth token:', authToken ? 'Yes' : 'No');
+          
+          // Prepare headers
+          const headers = {};
+          if (authToken) {
+            headers['Authorization'] = 'Token ' + authToken;
+          }
+          
+          // Upload to the project API
+          const uploadUrl = `{{ api_base_url }}/api/ifc/${projectId}/upload/`;
+          console.log('Upload URL:', uploadUrl);
+          console.log('Headers:', headers);
+          
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            mode: 'cors', // Enable CORS
+            credentials: 'omit', // Don't send cookies
+            headers: headers,
+            body: formData
+          });
+
+          console.log('Upload response status:', uploadResponse.status);
+
+          if (uploadResponse.ok) {
+            const result = await uploadResponse.json();
+            alert('File uploaded successfully to project!');
+            console.log('Upload result:', result);
+          } else {
+            const errorText = await uploadResponse.text();
+            console.error('Upload error response:', errorText);
+            
+            // Handle authentication errors specifically
+            if (uploadResponse.status === 401) {
+              sessionStorage.removeItem("auth_token"); // Clear invalid token from sessionStorage
+              throw new Error('Authentication failed. Please login again.');
+            } else if (uploadResponse.status === 403) {
+              throw new Error('Access forbidden. You may not have permission to upload to this project.');
+            } else {
+              throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}\n${errorText}`);
+            }
+          }
+        } catch (error) {
+          console.error('Upload error:', error);
+          alert('Upload failed: ' + error.message);
+        } finally {
+          // Re-enable button
+          uploadBtn.disabled = false;
+          uploadBtn.textContent = originalText;
+        }
       }
     </script>
   </body>
