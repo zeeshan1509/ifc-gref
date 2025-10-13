@@ -189,6 +189,18 @@
         box-shadow: 0 6px 16px rgba(107, 114, 128, 0.35);
       }
 
+      .btn-secondary:disabled {
+        background: #b0c70d;
+        cursor: not-allowed;
+        opacity: 0.6;
+        box-shadow: 0 4px 12px rgba(176, 199, 13, 0.15);
+      }
+
+      .btn-secondary:disabled:hover {
+        transform: none;
+        box-shadow: 0 4px 12px rgba(176, 199, 13, 0.15);
+      }
+
       .btn-link {
         text-decoration: none;
       }
@@ -379,26 +391,33 @@
         return sessionStorage.getItem('auth_token');
       }
 
-      // Show upload button and add debug info
+      // Check project ID and authentication status on page load
       document.addEventListener('DOMContentLoaded', function() {
         const projectId = getProjectIdFromURL();
         const authToken = getTokenFromURL();
         const uploadBtn = document.getElementById('uploadBtn');
         
         if (uploadBtn) {
-          if (projectId) {
-            uploadBtn.style.display = 'inline-block';
-            uploadBtn.textContent = `Upload to Project (${projectId})`;
+          if (!projectId) {
+            // Disable button and add tooltip when no project ID
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Upload to Project';
+            uploadBtn.title = 'Project ID not found. Please access this page with a valid project_id parameter.';
+            uploadBtn.style.cursor = 'not-allowed';
           } else {
-            uploadBtn.style.display = 'inline-block';
-            uploadBtn.textContent = 'Upload to Project (No Project ID)';
-            uploadBtn.style.opacity = '0.6';
-          }
-          
-          // Show warning if no auth token
-          if (!authToken) {
-            uploadBtn.style.backgroundColor = '#ffc107';
-            uploadBtn.title = 'Warning: No authentication token found. Upload may fail.';
+            // Enable button when project ID exists
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = `Upload to Project (${projectId})`;
+            uploadBtn.style.cursor = 'pointer';
+            
+            if (!authToken) {
+              // Warning styling when no auth token but project ID exists
+              uploadBtn.style.backgroundColor = '#ffc107';
+              uploadBtn.title = 'Warning: No authentication token found. Upload may fail.';
+            } else {
+              // Normal styling when both project ID and token exist
+              uploadBtn.title = 'Upload georeferenced IFC file to project';
+            }
           }
         }
       });
@@ -423,16 +442,19 @@
       }
 
       async function uploadToProject() {
+        const uploadBtn = document.getElementById('uploadBtn');
+        
+        // Check if button is disabled (no project ID)
+        if (uploadBtn.disabled) {
+          return; // Do nothing, tooltip will show the reason
+        }
+        
         const projectId = getProjectIdFromURL();
         
+        // This should not happen since button is disabled when no project ID
+        // But keeping as fallback
         if (!projectId) {
-          const userProjectId = prompt('Project ID not found in URL. Please enter your Project ID:');
-          if (!userProjectId) {
-            alert('Upload cancelled. Project ID is required.');
-            return;
-          }
-          // Use the manually entered project ID
-          return uploadWithProjectId(userProjectId);
+          return;
         }
 
         return uploadWithProjectId(projectId);
